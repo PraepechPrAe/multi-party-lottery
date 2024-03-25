@@ -8,6 +8,7 @@ contract lottery is CommitReveal{
         address addr;
         bool isReveal;
         bool isValid;
+        bool isRefund;
     }
     address public owner;
     uint public  T1; //Stage 1 end time
@@ -70,6 +71,7 @@ contract lottery is CommitReveal{
         commit(hashedInput);
         user[numUser].isReveal = false;
         user[numUser].isValid = false;
+        user[numUser].isRefund = false;
         numUser++;
         if(firstJoin_time == 0) {
             firstJoin_time = block.timestamp;
@@ -102,11 +104,14 @@ contract lottery is CommitReveal{
             }
         }
     }
-
+    bool hadFoundWinner = false;
     function findWinner() public payable {
         require(currentStateCheck() == 3);
         require(msg.sender == owner);
+        require(hadFoundWinner == false);
+        hadFoundWinner = true;
         checkValid();
+
         uint XOR_value = 0;
         uint validUser = 0;
 
@@ -116,12 +121,22 @@ contract lottery is CommitReveal{
                 validUser++;
             }
         }
-
+        
         if (validUser != 0) {
             bytes32 hashXOR = getHash(bytes32(XOR_value));
             uint winnerIdx = uint(hashXOR) % validUser;
-            payable(user[winnerIdx].addr).transfer(reward * 98 / 100);
-            payable(owner).transfer(reward * 98 /100);
+            uint count=0;
+            for(uint i=0; i<numUser; i++) {
+                if (user[i].isValid) {
+                    if(count == winnerIdx) {
+                        reward = 0;
+                        payable(user[i].addr).transfer((0.001 ether) * numUser * 98 / 100);
+                        payable(owner).transfer((0.001 ether) * numUser * 2 /100);
+                    }
+                    count++;
+            }
+            }
+            
         }
         else {
             payable(owner).transfer(reward);
@@ -134,6 +149,10 @@ contract lottery is CommitReveal{
     function refund() public {
         require(currentStateCheck() == 4);
         require(msg.sender == user[user_idx[msg.sender]].addr);
+        require(hadFoundWinner == false);
+        require(user[user_idx[msg.sender]].isRefund == false);
+        user[user_idx[msg.sender]].isRefund = true;
+        reward -= 0.001 ether;
         payable(msg.sender).transfer(0.001 ether);
         if (reward == 0) {
         resetParam();
@@ -150,6 +169,7 @@ contract lottery is CommitReveal{
         numUser = 0; 
         reward = 0; 
         firstJoin_time = 0;
+        hadFoundWinner = false;
 }
 }
 
