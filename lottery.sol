@@ -106,7 +106,7 @@ contract lottery is CommitReveal{
     function findWinner() public payable {
         require(currentStateCheck() == 3);
         require(msg.sender == owner);
-
+        checkValid();
         uint XOR_value = 0;
         uint validUser = 0;
 
@@ -126,12 +126,18 @@ contract lottery is CommitReveal{
         else {
             payable(owner).transfer(reward);
         }
+        if (reward == 0) {
+        resetParam();
+        }
     }
 
     function refund() public {
         require(currentStateCheck() == 4);
         require(msg.sender == user[user_idx[msg.sender]].addr);
         payable(msg.sender).transfer(0.001 ether);
+        if (reward == 0) {
+        resetParam();
+        }
     }
 
     function resetParam() private {
@@ -141,7 +147,9 @@ contract lottery is CommitReveal{
             delete user_idx[user[i].addr];
             delete user[i];
         }
-
+        numUser = 0; 
+        reward = 0; 
+        firstJoin_time = 0;
 }
 }
 
